@@ -1,3 +1,6 @@
+*.zip
+*.gz
+*.jpg
 .vscode/
 data/
 __pycache__

@@ -5,7 +5,7 @@ from utils.projection_utils import get_all_objects_keypoint_tensors
 from .base_model import BaseModel
 from utils.net_util import input_embedding_net, EnvWHumanCpFiniteDiffFast, combine_block_w_do
 
-from torchvision.models.resnet import resnet18
+from torchvision.models.resnet import resnet18, resnet50
 from solvers import metrics
 
 
@@ -23,19 +23,22 @@ class NoForceOnlyCPModel(BaseModel):
         self.sequence_length = args.sequence_length
         self.gpu_ids = args.gpu_ids
 
-        self.feature_extractor = resnet18(pretrained=args.pretrain)
+        feature_extractors = {'resnet18': resnet18, 'resnet50': resnet50}
+        self.feature_extractor = feature_extractors[args.feature_extractor](pretrained=args.pretrain)
         del self.feature_extractor.fc
 
         self.feature_extractor.eval()
-
-        self.image_feature_size = 512
+        if args.feature_extractor == 'resnet18':
+            self.image_feature_size = 512
+        else:
+            self.image_feature_size = 2048
         self.object_feature_size = 512
         self.hidden_size = 512
         self.num_layers = 3
         self.input_feature_size = self.object_feature_size
         self.cp_feature_size = self.number_of_cp * 3
 
-        self.image_embed = combine_block_w_do(512, 64, args.dropout_ratio)
+        self.image_embed = combine_block_w_do(self.image_feature_size, 64, args.dropout_ratio)
         input_object_embed_size = torch.Tensor([3 + 4, 100, self.object_feature_size])
         self.input_object_embed = input_embedding_net(input_object_embed_size.long().tolist(), dropout=args.dropout_ratio)
         self.lstm_encoder = nn.LSTM(input_size=64 * 7 * 7 + 512, hidden_size=self.hidden_size, batch_first=True, num_layers=self.num_layers)
@@ -66,7 +69,7 @@ class NoForceOnlyCPModel(BaseModel):
             x = self.feature_extractor.layer2(x)
             x = self.feature_extractor.layer3(x)
             x = self.feature_extractor.layer4(x)
-            x = x.view(batch_size, seq_len, 512, 7, 7)
+            x = x.view(batch_size, seq_len, self.image_feature_size, 7, 7)
         return x
 
     def forward(self, input, target):
@@ -77,7 +80,7 @@ class NoForceOnlyCPModel(BaseModel):
         batch_size, seq_len, c, w, h = rgb.shape
 
         image_features = self.resnet_features(rgb)
-        image_features = self.image_embed(image_features.view(batch_size * seq_len, 512, 7, 7)).view(batch_size, seq_len, 64 * 7 * 7)
+        image_features = self.image_embed(image_features.view(batch_size * seq_len, self.image_feature_size, 7, 7)).view(batch_size, seq_len, 64 * 7 * 7)
         initial_object_features = self.input_object_embed(torch.cat([initial_position, initial_rotation], dim=-1))
         object_features = initial_object_features.unsqueeze(1).repeat(1, self.sequence_length, 1)  # add a dimension for sequence length and then repeat that
 

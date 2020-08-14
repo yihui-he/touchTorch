@@ -48,6 +48,12 @@ def get_model_and_loss(args):
             latest_index = np.argmax(np.array(epoch_indices))
         reload_adr = all_saved_models[latest_index]
         print('Exact Address is:', reload_adr)
+    if args.pretrained_weights is not None:
+        loaded_weights = torch.load(args.pretrained_weights)
+        try:
+            model.feature_extractor.load_state_dict(loaded_weights, strict=args.strict)
+        except:
+            model.feature_extractor.load_state_dict(loaded_weights['state_dict'], strict=args.strict)
     if reload_adr is not None:
         if args.gpu_ids == -1:
             loaded_weights = torch.load(reload_adr, map_location='cpu')

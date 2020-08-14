@@ -96,6 +96,8 @@ def parse_args():
     parser.add_argument('--base-lr', default=0.001, type=float, help='base learning rate ')
     parser.add_argument('--reload', default=None, type=str, metavar='PATH', help='path to latest checkpoint')
     parser.add_argument('--reload_dir', default=None, type=str, metavar='PATH')
+    parser.add_argument('--pretrained_weights', default=None, type=str, metavar='PATH')
+    parser.add_argument('--feature_extractor', default='resnet18', type=str)
     parser.add_argument('--reload_from_title', default=None, type=str)
     parser.add_argument('--reload_from_title_epoch', default=-1, type=int)
     parser.add_argument('--no-strict', action='store_false', dest='strict', help='Loading the weights from another model.')
